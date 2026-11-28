@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en"><head>
+<meta name="robots" content="noindex, nofollow"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trend Following Monitor</title>
+<meta name="description" content="DBMF, AHLT and KMLM side by side: where each managed futures ETF's book leans, what changed, and where they split.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f3f5f6; --surface: #fbfcfc; --ink: #0f1720; --ink-2: #4a5561; --muted: #7b8590;
+  --grid: #e2e6e9; --axis: #c5ccd2; --line: rgba(15, 23, 32, 0.10);
+  --accent: #1d5e8c; --wash: rgba(29, 94, 140, 0.07);
+  --long: #2a78d6; --short: #eb6834;
+  --sans: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d1013; --surface: #151a1e; --ink: #eef2f5; --ink-2: #b6bfc8; --muted: #7f8993;
+    --grid: #252c32; --axis: #39424a; --line: rgba(255,255,255,0.09);
+    --accent: #6fb0e0; --wash: rgba(111,176,224,0.09);
+    --long: #3987e5; --short: #d95926;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d1013; --surface: #151a1e; --ink: #eef2f5; --ink-2: #b6bfc8; --muted: #7f8993;
+  --grid: #252c32; --axis: #39424a; --line: rgba(255,255,255,0.09);
+  --accent: #6fb0e0; --wash: rgba(111,176,224,0.09);
+  --long: #3987e5; --short: #d95926;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--page); }
+body { margin: 0; color: var(--ink); font: 14px/1.5 var(--sans); padding-inline: 20px; padding-block: 28px 56px; }
+@media (max-width: 600px) { body { padding-inline: 16px; } }
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 22px; min-width: 0; }
+.navs { display: grid; gap: 4px; margin-bottom: -8px; }
+nav.sites { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 12.5px; }
+nav.sites a { color: var(--ink-2); text-decoration: none; padding: 3px 9px; border-radius: 6px; border: 1px solid transparent; white-space: nowrap; }
+nav.sites a:hover { background: var(--wash); color: var(--ink); }
+nav.sites a[aria-current] { color: var(--ink); font-weight: 600; border-color: var(--line); background: var(--surface); }
+nav.sites a:focus-visible, nav.pages a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+nav.sites .div { width: 1px; height: 14px; background: var(--axis); margin: 0 3px; }
+nav.sites .home { margin-left: auto; }
+@media (max-width: 600px) { nav.sites .home { margin-left: 0; } nav.sites .div { display: none; } }
+nav.pages { display: flex; flex-wrap: wrap; gap: 2px 4px; font-size: 13px; border-bottom: 1px solid var(--line); }
+nav.pages a { color: var(--ink-2); text-decoration: none; padding: 5px 10px 6px; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+nav.pages a:hover { color: var(--ink); }
+nav.pages a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+
+header.top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 20px; align-items: end; }
+.eyebrow { font-size: 12px; color: var(--muted); letter-spacing: .02em; }
+h1 { margin: 2px 0 0; font-size: 26px; letter-spacing: -.01em; }
+.indep { font-size: 11.5px; color: var(--muted); max-width: 80ch; margin-top: 4px; }
+.asof { font-size: 12px; color: var(--muted); text-align: right; }
+.asof b { color: var(--ink-2); font-weight: 600; }
+.asof .old { color: var(--short); }
+@media (max-width: 600px) { .asof { text-align: left; } }
+h2 { margin: 0; font-size: 17px; }
+.sub { color: var(--muted); font-size: 12.5px; }
+section { display: grid; gap: 10px; min-width: 0; }
+.hd { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 14px; }
+
+/* ---- leans: one card per fund ---- */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px 10px; display: grid; gap: 8px; min-width: 0; color: inherit; text-decoration: none; align-content: start; }
+a.card:hover { border-color: var(--axis); }
+a.card:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.card .t { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.card .tk { font-weight: 700; font-size: 16px; }
+.card .what { font-size: 11.5px; color: var(--muted); text-align: right; }
+.row { display: grid; grid-template-columns: 82px minmax(0, 1fr) 62px; align-items: center; gap: 8px; font-size: 12.5px; }
+.row .l { color: var(--ink-2); }
+.row .v { text-align: right; font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+.bar { position: relative; height: 12px; }
+.bar::before { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--axis); }
+.bar i { position: absolute; top: 1px; bottom: 1px; border-radius: 2px; }
+.bar i.pos { background: var(--long); } .bar i.neg { background: var(--short); }
+.bar s { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); opacity: .45; border-radius: 1px; }
+.na { color: var(--muted); font-size: 11.5px; grid-column: 2 / 4; }
+.foot { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 11.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 6px; }
+.foot b { color: var(--ink-2); font-family: var(--mono); font-weight: 500; }
+.key { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
+.key i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
+.key s { display: inline-block; width: 2px; height: 12px; background: var(--ink); opacity: .45; vertical-align: -2px; margin-right: 4px; }
+
+/* ---- tables ---- */
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; font-size: 12.5px; padding: 4px 10px; border: 0; background: var(--surface); color: var(--ink-2); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--wash); color: var(--ink); font-weight: 600; }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tw { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 6px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th { font-weight: 600; color: var(--ink-2); font-size: 12px; vertical-align: bottom; }
+th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: var(--surface); }
+tr:last-child td { border-bottom: 0; }
+td.num { font-family: var(--mono); font-size: 12.5px; }
+td.l, th.l { text-align: left; }
+.pos { color: var(--long); } .neg { color: var(--short); } .zero { color: var(--muted); }
+.pill { display: inline-block; min-width: 54px; padding: 1px 6px; border-radius: 5px; font-family: var(--mono); font-size: 12px; text-align: right; }
+.pill.pos { background: color-mix(in srgb, var(--long) 16%, transparent); }
+.pill.neg { background: color-mix(in srgb, var(--short) 16%, transparent); }
+.pill.small { background: transparent; opacity: .6; }
+.tag { font-size: 11.5px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--line); color: var(--ink-2); }
+.tag.split { border-color: var(--ink-2); color: var(--ink); font-weight: 600; }
+.tag.pos { color: var(--long); border-color: color-mix(in srgb, var(--long) 45%, transparent); }
+.tag.neg { color: var(--short); border-color: color-mix(in srgb, var(--short) 45%, transparent); }
+#nx td:first-child, #nx-quiet td:first-child, #nx-minor td:first-child { white-space: normal; }
+#nx-quiet td.l, #nx-minor td.l { white-space: normal; }
+@media (max-width: 520px) { #s-nx th, #s-nx td { padding: 6px 4px; } #s-nx th.l { white-space: normal; } #s-nx .call { min-width: 0; padding: 2px 5px; font-size: 12px; } #s-nx td.num { font-size: 11.5px; } #s-nx td, #s-nx th { padding: 6px 3px; } #s-nx .cf-l { display: none; } #s-nx th .cls { display: none; } #s-nx .cf-s { display: inline; } #s-nx .why { display: none; } #s-nx td .dots { letter-spacing: -0.5px; font-size: 9px; } #s-nx th:first-child, #s-nx td:first-child { padding-left: 10px; } }
+/* DBMF column off: the tables shrink to their content, for a narrow screenshot */
+#s-nx.tight .tw { width: fit-content; max-width: 100%; }
+#s-nx.tight table { width: auto; }
+#s-nx.tight .hd { justify-content: flex-start; }
+#s-nx.tight .chgnote { max-width: 46ch; }
+#nx-f { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+#s-nx > * { min-width: 0; max-width: 100%; }
+.cf-s { display: none; }
+#nx-dbmf .ck { display: inline-block; width: 11px; height: 11px; margin-right: 6px; border: 1.5px solid var(--muted); border-radius: 3px; vertical-align: -1px; }
+#nx-dbmf[aria-pressed="true"] .ck { background: var(--accent); border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--surface); }
+/* a three-column table never needs the full width */
+@media (min-width: 521px) { #s-nx th .cls { display: block; font-weight: 400; } }
+.call.weak { font-weight: 600; }
+.call.weak.pos { background: color-mix(in srgb, var(--long) 9%, transparent); }
+.call.weak.neg { background: color-mix(in srgb, var(--short) 9%, transparent); }
+.dots { letter-spacing: 3px; font-size: 11px; color: var(--ink); cursor: help; }
+.dots .o { color: var(--muted); opacity: .55; }
+.why { color: var(--muted); font-size: 11.5px; margin-left: 6px; }
+#nx tr.brk td { position: static; white-space: normal; text-align: left; background: var(--wash); color: var(--ink-2); font-size: 11.5px; padding-top: 7px; padding-bottom: 7px; border-top: 1px solid var(--line); }
+#nx tr.brk b { color: var(--ink); }
+#nx tr.brk button { all: unset; display: block; width: 100%; cursor: pointer; }
+#nx tr.brk button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+#nx tr.brk .tw-c { display: inline-block; width: 1.1em; font-size: 13px; color: var(--ink-2); transition: transform .15s; }
+#nx tr.brk button[aria-expanded="true"] .tw-c { transform: rotate(90deg); }
+#nx.px-shut tr.pxr { display: none; }
+.nxkey { margin: 0; font-size: 11.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 14px; }
+.nxkey .dots { cursor: default; margin-right: 4px; }
+/* the projected move is the point of the table: a filled word, not an outline */
+.call { display: inline-block; min-width: 62px; text-align: center; padding: 2px 10px; border-radius: 6px; font-size: 12.5px; font-weight: 700; }
+.call.pos { color: var(--long); background: color-mix(in srgb, var(--long) 18%, transparent); }
+.call.neg { color: var(--short); background: color-mix(in srgb, var(--short) 18%, transparent); }
+/* the implied commercial move: the same call flipped, quieter than the call itself */
+.cm { display: block; margin-top: 2px; font-size: 11px; font-weight: 600; line-height: 1.25; white-space: normal; }
+.cm.pos { color: var(--long); }
+.cm.neg { color: var(--short); }
+/* from 600px up the commercials get their own column, an outlined pill: it follows from the
+   spec call, so it should not read as a second, opposing call. Below that, the line under the call. */
+.call.ol { background: transparent; font-weight: 600; }
+.call.ol.pos { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--long) 55%, transparent); }
+.call.ol.neg { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--short) 55%, transparent); }
+#nx .cmc { display: none; }
+@media (min-width: 600px) { #nx .cmc { display: table-cell; } #nx .cm { display: none; } }
+.specs { display: block; color: var(--muted); font-size: 11.5px; }
+.chgnote { margin: 4px 0 8px; font-size: 11.5px; color: var(--muted); }
+.chgnote:empty { display: none; }
+.moves { display: grid; gap: 3px; font-size: 12.5px; color: var(--ink-2); }
+.moves b { color: var(--ink); }
+.moves .num { font-family: var(--mono); font-size: 12px; }
+.cls { color: var(--muted); font-size: 11.5px; font-weight: 400; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.two h3 { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.heat { font-family: var(--mono); font-size: 12px; border-radius: 4px; padding: 1px 6px; display: inline-block; min-width: 46px; text-align: right; }
+
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; font-size: 13px; color: var(--ink-2); }
+details summary { cursor: pointer; color: var(--ink-2); font-size: 12.5px; }
+details[open] summary { margin-bottom: 8px; }
+details p { margin: 6px 0; max-width: 95ch; }
+details .tw { border: 0; }
+.legal { font-size: 11.5px; color: var(--muted); max-width: 110ch; }
+.empty { color: var(--muted); }
+</style>
+</head><body>
+<div class="wrap">
+  <div class="navs"><nav class="sites" aria-label="Monitors"><a href="https://trend.bluemagicai.com/" aria-current="true">Trend following</a><a href="https://allw.bluemagicai.com/" title="Risk parity">ALLW</a><a href="https://orr.bluemagicai.com/" title="Equity long/short">ORR</a><span class="div" aria-hidden="true"></span><a href="https://surveys.bluemagicai.com/" title="Sentiment surveys">Surveys</a><a href="https://internals.bluemagicai.com/" title="Market internals">Market</a><a class="home" href="https://bluemagicai.com/">COT Analyzer &rarr;</a></nav><nav class="pages" aria-label="Trend following"><a href="https://trend.bluemagicai.com/" aria-current="page">Summary</a><a href="https://dbmf.bluemagicai.com/">DBMF</a><a href="https://ahlt.bluemagicai.com/">AHLT</a><a href="https://kmlm.bluemagicai.com/">KMLM</a></nav></div>
+  <header class="top">
+    <div>
+      <div class="eyebrow">Managed futures ETFs, read from their published holdings</div>
+      <h1>Trend following, side by side</h1>
+      <div class="indep">An independent page built from each fund's published holdings. Not affiliated with, endorsed or reviewed by any fund sponsor. Not investment advice.</div>
+    </div>
+    <div class="asof" id="asof"></div>
+  </header>
+
+  <section aria-labelledby="h-lean">
+    <div class="hd"><h2 id="h-lean">Where each book leans</h2>
+      <div class="key"><span><i style="background:var(--long)"></i>long</span><span><i style="background:var(--short)"></i>short</span><span><s></s>a month ago</span></div></div>
+    <div class="cards" id="cards"></div>
+    <details><summary>How these are worked out</summary>
+      <p><b>Equities</b> and <b>commodities</b>: net futures exposure, % of NAV. <b>Bonds</b>: duration years, each bond future's weight times the duration of the bond it delivers, so a book at &minus;7 gains about 7% of NAV when yields rise one point. Notional would rank a fund short 2-year notes above one short the same amount of 10-year bonds. <b>US dollar</b>: the currency futures are foreign currencies against the dollar, so short the euro is long the dollar. <b>Gross</b>: the long and the short futures notional. <b>Collateral</b>: T-bills and cash, as each fund lists them.</p>
+      <p>Every bar in a row is on one scale across the funds, so a short bar is a small position, not a rounding.</p>
+      <p id="approx-note" hidden>* Uses rounded durations for the non-US bond futures (Bund, Bobl, Gilt, JGB, Canada), so read it to the nearest year.</p>
+    </details>
+  </section>
+
+  <section aria-labelledby="h-chg">
+    <div class="hd"><h2 id="h-chg">What changed</h2>
+      <div class="seg" role="group" aria-label="Change over" id="lk"></div></div>
+    <div class="tw"><table id="chg"></table></div>
+    <p class="chgnote" id="chg-note"></p>
+    <div class="moves" id="moves"></div>
+    <details><summary>Every market traded</summary><div class="tw"><table id="chg-all"></table></div>
+      <p>What each fund bought or sold, % of NAV, for trades of a point or more: the change in contracts at today's price. <b>Price move</b> is the rest of the change in weight, the position growing or shrinking with its market, and is left out of everything above. A creation or redemption makes a fund scale its whole book. AHLT and KMLM net that out; DBMF's figures do not, so a large DBMF flow shows up as buying or selling across the board.</p></details>
+  </section>
+
+  <section aria-labelledby="h-nx" id="s-nx" hidden>
+    <div class="hd"><h2 id="h-nx">What to expect in the next COT report</h2><div id="nx-f"><div class="sub" id="nx-sub"></div><div class="seg" id="nx-seg" hidden><button type="button" id="nx-dbmf" aria-pressed="true" title="Show or hide the DBMF column. DBMF is shown for context and never counts toward a call."><span class="ck" aria-hidden="true"></span>DBMF column</button></div></div></div>
+    <p class="chgnote" id="nx-lead"></p>
+    <div class="tw"><table id="nx"></table></div>
+    <p class="nxkey" id="nx-key" hidden><span><span class="dots">●●●●</span>right about 5 times in 6</span><span><span class="dots">●●●<span class="o">●</span></span>about 3 in 4</span><span><span class="dots">●●<span class="o">●●</span></span>about 2 in 3</span><span><span class="dots">●<span class="o">●●●</span></span>near a coin flip</span></p>
+    <p class="chgnote" id="nx-thru"></p>
+    <details id="nx-quiet-d"><summary id="nx-quiet-s"></summary><div class="tw"><table id="nx-quiet"></table></div></details>
+    <details id="nx-minor-d"><summary id="nx-minor-s"></summary><div class="tw"><table id="nx-minor"></table></div></details>
+    <details><summary>How this is worked out, and its record</summary>
+      <p>The COT report shows positions at a Tuesday close. Each fund column is what that fund has bought or sold since then, % of NAV, with price moves left out. <b>Price</b> is the market's own move over the same days. A market gets a call when AHLT or KMLM traded a point or more in it and the market is in a class where that fund's position changes have run with the large speculators' (currencies and commodities, as a rule). "Funds split" means the two traded opposite ways, and no call is made.</p>
+      <p><b>Confidence.</b> How often calls like this one were right when the same rule is replayed over every past report week (AHLT 150 weeks, KMLM 97). All calls together: 70%. It depends on what the market's price did over the same days, and on the size of the fund's trade. Four dots: price moved the way the fund traded and the fund traded 4% of NAV or more, right 85% of the time. Three dots: price agreed with a smaller trade, 74%. Two dots: price was flat (under half a percent), 67%. One dot: price moved against the fund, 54%, which the record cannot tell from a coin flip. Blank: no price series, or the funds split. Hover on the dots for the figure.</p>
+      <p>These are past frequencies from one stretch of history, good to within about five points, and they say nothing about the size of the move. The four-dot grade is the newest cut and rests on the fewest calls (206).</p>
+      <p><b>Commercials.</b> The Commercials column (on a phone, the small line under each call) is the commercials' implied move, the large-spec call flipped. Commercials are mostly the other side of the large speculators' trades: their weekly net changes have gone the opposite way about 9 weeks in 10. Graded against the commercials' own moves, the flipped call has been right as often as the call itself (72% against 70% overall, and within a few points at every confidence grade), so the same dots apply.</p>
+      <p><b>Price only.</b> A commodity with no fund call is read from its price move alone: large speculators tend to buy what is rising. The dots are on the same scale and stop at three: three for a move over 4% (right 76% of the time), two for 2 to 4% (72%), one for 1 to 2% (64%). Moves under 1% are left out (close to a coin flip), and so are currencies, equity indexes and rates, where price alone says little or nothing. A fund's trade shown on such a row did not count: DBMF never does, and AHLT or KMLM only where their trades have run with the large speculators'.</p>
+      <p>These are past frequencies from one stretch of history, good to within about five points, and they say nothing about the size of the move. A larger fund trade has done better than a smaller one (78% for trades over 4% of NAV), which the dots do not include.</p>
+    </details>
+  </section>
+
+  <section aria-labelledby="h-grid">
+    <div class="hd"><h2 id="h-grid">Where they split, where they agree</h2><div class="sub" id="grid-sub"></div></div>
+    <div class="tw"><table id="grid"></table></div>
+    <details><summary>Markets only one fund holds</summary><div class="tw"><table id="grid-one"></table></div></details>
+  </section>
+
+  <section aria-labelledby="h-cot" id="s-cot">
+    <div class="hd"><h2 id="h-cot">Who they move with</h2><div class="sub" id="cot-sub"></div></div>
+    <div class="two" id="cot"></div>
+    <details><summary>Every COT group, by asset class</summary><div id="cot-full"></div>
+      <p>How closely each fund's weekly position change follows each trader group's weekly change in net position, averaged over the US-listed markets in the class. A class has two to six markets, so read a cell as a lean. Shaded from 0.2. In Treasuries the leveraged funds' short is mostly the cash-futures basis trade, not a trend bet. Descriptive only, not a signal.</p></details>
+  </section>
+</div>
+<script>
+(function () {
+  const D = {"generated_at":"2026-11-28T14:50","cot_as_of":"2026-11-17","funds":[{"key":"DBMF","what":"CTA replication","url":"https://dbmf.bluemagicai.com/","as_of":"2026-11-25","stale":false,"collateral":0.846963,"lean":{"equity":0.069117,"bonds":-6.47075889,"usd":0.23820399999999997,"commodity":0.012310999999999989,"gross_long":0.48607900000000004,"gross_short":1.9303190000000001,"bonds_approx":false,"bonds_unknown":[]},"then":{"week":{"date":"2026-11-18","lean":{"equity":0.144322,"bonds":-7.09056255,"usd":0.29823399999999994,"commodity":0.12075399999999999,"gross_long":0.533818,"gross_short":2.009429,"bonds_approx":false,"bonds_unknown":[]},"change":{"basis":"traded","equity":-0.07436000000000001,"bonds":0.80939644,"usd":-0.065056,"commodity":-0.11022200000000001,"gross_long":0.253415,"gross_short":0.18458200000000002,"bonds_approx":false,"bonds_unknown":[]},"moves":[{"market":"TU","name":"US 2-year","class":"rates","from":-0.6404,"to":-0.5555,"d":0.0849,"kind":"covered some","traded":0.0968},{"market":"GC","name":"Gold","class":"commodity","from":-0.0066,"to":-0.0795,"d":-0.0729,"kind":"shorted more","traded":-0.0742},{"market":"TY","name":"US 10-year","class":"rates","from":-0.5704,"to":-0.5104,"d":0.06,"kind":"covered some","traded":0.0734},{"market":"JY","name":"Japanese yen","class":"fx","from":0.2384,"to":0.285,"d":0.0466,"kind":"bought more","traded":0.0421},{"market":"ES","name":"S&P 500","class":"equity","from":0.1103,"to":0.0706,"d":-0.0397,"kind":"sold some","traded":-0.0395},{"market":"CL","name":"WTI crude","class":"commodity","from":0.1274,"to":0.0918,"d":-0.0356,"kind":"sold some","traded":-0.036},{"market":"EC","name":"Euro","class":"fx","from":-0.5366,"to":-0.5232,"d":0.0134,"kind":"covered some","traded":0.023},{"market":"MES","name":"MSCI Emerging Markets","class":"equity","from":0.0577,"to":0.0387,"d":-0.019,"kind":"sold some","traded":-0.0188},{"market":"US","name":"US T-Bond","class":"rates","from":-0.2316,"to":-0.2215,"d":0.0101,"kind":"covered some","traded":0.0181},{"market":"MFS","name":"MSCI EAFE","class":"equity","from":-0.0237,"to":-0.0401,"d":-0.0164,"kind":"shorted more","traded":-0.0161}]},"month":{"date":"2026-10-27","lean":{"equity":0.086317,"bonds":-7.20821803,"usd":0.615567,"commodity":0.09695000000000001,"gross_long":0.563232,"gross_short":2.701673,"bonds_approx":false,"bonds_unknown":[]},"change":{"basis":"weight","equity":-0.017200000000000007,"bonds":0.7374591400000003,"usd":-0.377363,"commodity":-0.08463900000000002},"moves":[{"market":"TU","name":"US 2-year","class":"rates","from":-0.8525,"to":-0.5555,"d":0.297,"kind":"short smaller"},{"market":"ES","name":"S&P 500","class":"equity","from":0.3124,"to":0.0706,"d":-0.2418,"kind":"long smaller"},{"market":"TY","name":"US 10-year","class":"rates","from":-0.7303,"to":-0.5104,"d":0.2199,"kind":"short smaller"},{"market":"MFS","name":"MSCI EAFE","class":"equity","from":-0.255,"to":-0.0401,"d":0.2148,"kind":"short smaller"},{"market":"EC","name":"Euro","class":"fx","from":-0.7301,"to":-0.5232,"d":0.2068,"kind":"short smaller"},{"market":"JY","name":"Japanese yen","class":"fx","from":0.1145,"to":0.285,"d":0.1705,"kind":"long larger"},{"market":"US","name":"US T-Bond","class":"rates","from":-0.1233,"to":-0.2215,"d":-0.0983,"kind":"short larger"},{"market":"GC","name":"Gold","class":"commodity","from":-0.0105,"to":-0.0795,"d":-0.069,"kind":"short larger"},{"market":"CL","name":"WTI crude","class":"commodity","from":0.1074,"to":0.0918,"d":-0.0156,"kind":"long smaller"}]},"cot":{"date":"2026-11-17","lean":{"equity":0.144165,"bonds":-7.0431059000000005,"usd":0.2991520000000001,"commodity":0.123683,"gross_long":0.536105,"gross_short":2.002149,"bonds_approx":false,"bonds_unknown":[]},"change":{"basis":"traded","equity":-0.07436000000000001,"bonds":0.80939644,"usd":-0.065056,"commodity":-0.11022200000000001,"gross_long":0.253415,"gross_short":0.18458200000000002,"bonds_approx":false,"bonds_unknown":[]},"moves":[{"market":"TU","name":"US 2-year","class":"rates","from":-0.6381,"to":-0.5555,"d":0.0826,"kind":"covered some","traded":0.0968},{"market":"GC","name":"Gold","class":"commodity","from":-0.0068,"to":-0.0795,"d":-0.0727,"kind":"shorted more","traded":-0.0742},{"market":"TY","name":"US 10-year","class":"rates","from":-0.5673,"to":-0.5104,"d":0.0569,"kind":"covered some","traded":0.0734},{"market":"JY","name":"Japanese yen","class":"fx","from":0.2376,"to":0.285,"d":0.0475,"kind":"bought more","traded":0.0421},{"market":"ES","name":"S&P 500","class":"equity","from":0.1102,"to":0.0706,"d":-0.0396,"kind":"sold some","traded":-0.0395},{"market":"CL","name":"WTI crude","class":"commodity","from":0.1305,"to":0.0918,"d":-0.0387,"kind":"sold some","traded":-0.036},{"market":"EC","name":"Euro","class":"fx","from":-0.5367,"to":-0.5232,"d":0.0135,"kind":"covered some","traded":0.023},{"market":"MES","name":"MSCI Emerging Markets","class":"equity","from":0.0579,"to":0.0387,"d":-0.0192,"kind":"sold some","traded":-0.0188},{"market":"US","name":"US T-Bond","class":"rates","from":-0.2294,"to":-0.2215,"d":0.0078,"kind":"covered some","traded":0.0181},{"market":"MFS","name":"MSCI EAFE","class":"equity","from":-0.0239,"to":-0.0401,"d":-0.0162,"kind":"shorted more","traded":-0.0161}]}},"never":{},"trades_known":true,"cot":{"rates":{"legacy_comm":{"r":-0.498,"pos":0,"n":3},"legacy_noncomm":{"r":0.348,"pos":3,"n":3},"legacy_small":{"r":0.239,"pos":3,"n":3},"spec":{"r":-0.015,"pos":1,"n":3},"other_rept":{"r":-0.035,"pos":1,"n":3},"counter":{"r":-0.242,"pos":0,"n":3},"dealer":{"r":0.455,"pos":3,"n":3}},"fx":{"legacy_comm":{"r":-0.541,"pos":0,"n":2},"legacy_noncomm":{"r":0.529,"pos":2,"n":2},"legacy_small":{"r":0.203,"pos":2,"n":2},"spec":{"r":0.608,"pos":2,"n":2},"other_rept":{"r":0.159,"pos":2,"n":2},"counter":{"r":0.312,"pos":2,"n":2},"dealer":{"r":-0.541,"pos":0,"n":2}},"commodity":{"legacy_comm":{"r":-0.393,"pos":0,"n":2},"legacy_noncomm":{"r":0.357,"pos":2,"n":2},"legacy_small":{"r":0.339,"pos":2,"n":2},"spec":{"r":0.34,"pos":2,"n":2},"other_rept":{"r":0.107,"pos":1,"n":2},"counter":{"r":-0.302,"pos":0,"n":2},"dealer":{"r":-0.104,"pos":0,"n":2}},"equity":{"legacy_comm":{"r":-0.216,"pos":1,"n":3},"legacy_noncomm":{"r":0.177,"pos":2,"n":3},"legacy_small":{"r":0.103,"pos":2,"n":3},"spec":{"r":-0.118,"pos":1,"n":3},"other_rept":{"r":0.551,"pos":2,"n":3},"counter":{"r":0.057,"pos":3,"n":3},"dealer":{"r":-0.181,"pos":1,"n":3}}},"cot_weeks":62},{"key":"AHLT","what":"Man AHL program","url":"https://ahlt.bluemagicai.com/","as_of":"2026-11-25","stale":false,"collateral":0.9868349999999999,"lean":{"equity":0.10077,"bonds":-11.412756400000001,"usd":1.8436599999999999,"commodity":-0.046020000000000005,"gross_long":0.20903999999999998,"gross_short":3.734199999999999,"bonds_approx":true,"bonds_unknown":[]},"then":{"week":{"date":"2026-11-18","lean":{"equity":0.31839999999999996,"bonds":-12.325275999999999,"usd":1.6804,"commodity":-0.0177,"gross_long":0.41059999999999997,"gross_short":3.6599000000000004,"bonds_approx":true,"bonds_unknown":[]},"change":{"basis":"traded","equity":-0.2131,"bonds":1.361932,"usd":0.11839999999999999,"commodity":-0.0357,"gross_long":0.23909999999999998,"gross_short":0.4087,"bonds_approx":true,"bonds_unknown":[]},"moves":[{"market":"BP","name":"British pound","class":"fx","from":-0.1225,"to":-0.2267,"d":-0.1042,"kind":"shorted more","traded":-0.1},{"market":"AD","name":"Australian dollar","class":"fx","from":-0.073,"to":-0.1305,"d":-0.0575,"kind":"shorted more","traded":-0.0561},{"market":"TY","name":"US 10-year","class":"rates","from":-0.4023,"to":-0.3686,"d":0.0337,"kind":"covered some","traded":0.0481},{"market":"ES","name":"S&P 500","class":"equity","from":0.0601,"to":0.0129,"d":-0.0472,"kind":"sold some","traded":-0.0464},{"market":"DAX","name":"DAX","class":"equity","from":0.087,"to":0.0406,"d":-0.0464,"kind":"sold some","traded":-0.0448},{"market":"STOXX50","name":"Euro Stoxx 50","class":"equity","from":0.064,"to":0.0186,"d":-0.0454,"kind":"sold some","traded":-0.0444},{"market":"FV","name":"US 5-year","class":"rates","from":-0.3818,"to":-0.3541,"d":0.0277,"kind":"covered some","traded":0.0396},{"market":"FTSE","name":"FTSE 100","class":"equity","from":0.0895,"to":0.0531,"d":-0.0364,"kind":"sold some","traded":-0.0364},{"market":"EC","name":"Euro","class":"fx","from":-0.5956,"to":-0.5738,"d":0.0218,"kind":"covered some","traded":0.036},{"market":"BOBL","name":"Euro Bobl","class":"rates","from":-0.4431,"to":-0.4215,"d":0.0216,"kind":"covered some","traded":0.0348},{"market":"BUND","name":"Euro Bund","class":"rates","from":-0.3248,"to":-0.3034,"d":0.0214,"kind":"covered some","traded":0.0328},{"market":"RTY","name":"Russell 2000","class":"equity","from":-0.0135,"to":-0.0348,"d":-0.0213,"kind":"shorted more","traded":-0.0204},{"market":"US","name":"US T-Bond","class":"rates","from":-0.1449,"to":-0.1327,"d":0.0122,"kind":"covered some","traded":0.0181},{"market":"HG","name":"Copper","class":"commodity","from":0.0042,"to":-0.0106,"d":-0.0147,"kind":"new short","traded":-0.0148},{"market":"UB","name":"US Ultra Bond","class":"rates","from":-0.1076,"to":-0.0996,"d":0.008,"kind":"covered some","traded":0.0132},{"market":"NQ","name":"Nasdaq-100","class":"equity","from":0.0032,"to":-0.0094,"d":-0.0126,"kind":"new short","traded":-0.0124},{"market":"GILT","name":"UK Gilt","class":"rates","from":-0.0651,"to":-0.0564,"d":0.0087,"kind":"covered some","traded":0.011}]},"month":{"date":"2026-10-27","lean":{"equity":0.5155,"bonds":-14.261123999999999,"usd":1.6323,"commodity":0.1535,"gross_long":0.8113999999999999,"gross_short":3.9159,"bonds_approx":true,"bonds_unknown":[]},"change":{"basis":"traded","equity":-0.34310000000000007,"bonds":1.503771,"usd":0.36000000000000004,"commodity":-0.183,"gross_long":0.21750000000000003,"gross_short":0.9061000000000001,"bonds_approx":true,"bonds_unknown":[]},"moves":[{"market":"ES","name":"S&P 500","class":"equity","from":0.2443,"to":0.0129,"d":-0.2314,"kind":"sold some","traded":-0.2074},{"market":"AD","name":"Australian dollar","class":"fx","from":0.0435,"to":-0.1305,"d":-0.174,"kind":"now short","traded":-0.1635},{"market":"GILT","name":"UK Gilt","class":"rates","from":-0.1414,"to":-0.0564,"d":0.085,"kind":"covered some","traded":0.0791},{"market":"BP","name":"British pound","class":"fx","from":-0.1432,"to":-0.2267,"d":-0.0835,"kind":"shorted more","traded":-0.0773},{"market":"NQ","name":"Nasdaq-100","class":"equity","from":0.0706,"to":-0.0094,"d":-0.08,"kind":"now short","traded":-0.0742},{"market":"HG","name":"Copper","class":"commodity","from":0.0645,"to":-0.0106,"d":-0.0751,"kind":"now short","traded":-0.0658},{"market":"JY","name":"Japanese yen","class":"fx","from":-0.2758,"to":-0.3019,"d":-0.0262,"kind":"shorted more","traded":-0.0581},{"market":"BUND","name":"Euro Bund","class":"rates","from":-0.3999,"to":-0.3034,"d":0.0965,"kind":"covered some","traded":0.051},{"market":"EC","name":"Euro","class":"fx","from":-0.6075,"to":-0.5738,"d":0.0337,"kind":"shorted more","traded":-0.0415},{"market":"TY","name":"US 10-year","class":"rates","from":-0.4452,"to":-0.3686,"d":0.0766,"kind":"covered some","traded":0.0393},{"market":"BZ","name":"Brent Crude","class":"commodity","from":0.0819,"to":0.032,"d":-0.0499,"kind":"sold some","traded":-0.0336},{"market":"CL","name":"WTI crude","class":"commodity","from":0.0839,"to":0.0321,"d":-0.0518,"kind":"sold some","traded":-0.0334},{"market":"TOPIX","name":"TOPIX","class":"equity","from":0.0588,"to":0.0197,"d":-0.0391,"kind":"sold some","traded":-0.0326},{"market":"GC","name":"Gold","class":"commodity","from":-0.0548,"to":-0.0704,"d":-0.0156,"kind":"shorted more","traded":-0.0322},{"market":"CD","name":"Canadian dollar","class":"fx","from":-0.4047,"to":-0.4041,"d":0.0006,"kind":"shorted more","traded":-0.0296},{"market":"FTSE","name":"FTSE 100","class":"equity","from":0.0868,"to":0.0531,"d":-0.0337,"kind":"sold some","traded":-0.019},{"market":"FV","name":"US 5-year","class":"rates","from":-0.409,"to":-0.3541,"d":0.0549,"kind":"covered some","traded":0.0183},{"market":"SI","name":"Silver","class":"commodity","from":-0.022,"to":-0.0291,"d":-0.0071,"kind":"shorted more","traded":-0.018},{"market":"RTY","name":"Russell 2000","class":"equity","from":-0.0221,"to":-0.0348,"d":-0.0127,"kind":"shorted more","traded":-0.0141},{"market":"US","name":"US T-Bond","class":"rates","from":-0.1568,"to":-0.1327,"d":0.0241,"kind":"covered some","traded":0.0106}]},"cot":{"date":"2026-11-17","lean":{"equity":0.3393,"bonds":-12.172274000000002,"usd":1.6474999999999997,"commodity":-0.010599999999999991,"gross_long":0.4381999999999999,"gross_short":3.6077999999999992,"bonds_approx":true,"bonds_unknown":[]},"change":{"basis":"traded","equity":-0.23,"bonds":1.24024,"usd":0.1543,"commodity":-0.044199999999999996,"gross_long":0.22769999999999999,"gross_short":0.4746,"bonds_approx":true,"bonds_unknown":[]},"moves":[{"market":"BP","name":"British pound","class":"fx","from":-0.1018,"to":-0.2267,"d":-0.1249,"kind":"shorted more","traded":-0.1212},{"market":"AD","name":"Australian dollar","class":"fx","from":-0.057,"to":-0.1305,"d":-0.0735,"kind":"shorted more","traded":-0.0722},{"market":"ES","name":"S&P 500","class":"equity","from":0.0731,"to":0.0129,"d":-0.0602,"kind":"sold some","traded":-0.0593},{"market":"TY","name":"US 10-year","class":"rates","from":-0.3982,"to":-0.3686,"d":0.0296,"kind":"covered some","traded":0.045},{"market":"DAX","name":"DAX","class":"equity","from":0.0883,"to":0.0406,"d":-0.0477,"kind":"sold some","traded":-0.0448},{"market":"STOXX50","name":"Euro Stoxx 50","class":"equity","from":0.0649,"to":0.0186,"d":-0.0463,"kind":"sold some","traded":-0.0444},{"market":"EC","name":"Euro","class":"fx","from":-0.6022,"to":-0.5738,"d":0.0284,"kind":"covered some","traded":0.041},{"market":"FV","name":"US 5-year","class":"rates","from":-0.3782,"to":-0.3541,"d":0.0241,"kind":"covered some","traded":0.0366},{"market":"FTSE","name":"FTSE 100","class":"equity","from":0.0911,"to":0.0531,"d":-0.038,"kind":"sold some","traded":-0.0364},{"market":"BUND","name":"Euro Bund","class":"rates","from":-0.3252,"to":-0.3034,"d":0.0218,"kind":"covered some","traded":0.0328},{"market":"BOBL","name":"Euro Bobl","class":"rates","from":-0.4417,"to":-0.4215,"d":0.0202,"kind":"covered some","traded":0.0326},{"market":"RTY","name":"Russell 2000","class":"equity","from":-0.0095,"to":-0.0348,"d":-0.0253,"kind":"shorted more","traded":-0.0244},{"market":"HG","name":"Copper","class":"commodity","from":0.0098,"to":-0.0106,"d":-0.0204,"kind":"now short","traded":-0.0199},{"market":"US","name":"US T-Bond","class":"rates","from":-0.1414,"to":-0.1327,"d":0.0087,"kind":"covered some","traded":0.0156},{"market":"NQ","name":"Nasdaq-100","class":"equity","from":0.0032,"to":-0.0094,"d":-0.0126,"kind":"new short","traded":-0.0124},{"market":"UB","name":"US Ultra Bond","class":"rates","from":-0.1054,"to":-0.0996,"d":0.0058,"kind":"covered some","traded":0.0119},{"market":"CL","name":"WTI crude","class":"commodity","from":0.0431,"to":0.0321,"d":-0.011,"kind":"sold some","traded":-0.0111}]}},"never":{},"trades_known":true,"cot":{"equity":{"legacy_comm":{"r":-0.087,"pos":1,"n":3},"legacy_noncomm":{"r":0.047,"pos":2,"n":3},"legacy_small":{"r":0.382,"pos":3,"n":3},"spec":{"r":-0.239,"pos":0,"n":3},"other_rept":{"r":0.036,"pos":2,"n":3},"counter":{"r":0.422,"pos":3,"n":3},"dealer":{"r":-0.173,"pos":1,"n":3}},"rates":{"legacy_comm":{"r":0.043,"pos":2,"n":3},"legacy_noncomm":{"r":-0.179,"pos":1,"n":3},"legacy_small":{"r":0.545,"pos":3,"n":3},"spec":{"r":-0.315,"pos":0,"n":3},"other_rept":{"r":-0.186,"pos":1,"n":3},"counter":{"r":0.059,"pos":3,"n":3},"dealer":{"r":0.284,"pos":3,"n":3}},"fx":{"legacy_comm":{"r":-0.735,"pos":0,"n":6},"legacy_noncomm":{"r":0.687,"pos":6,"n":6},"legacy_small":{"r":0.639,"pos":6,"n":6},"spec":{"r":0.374,"pos":6,"n":6},"other_rept":{"r":0.104,"pos":4,"n":6},"counter":{"r":0.658,"pos":6,"n":6},"dealer":{"r":-0.718,"pos":0,"n":6}},"commodity":{"legacy_comm":{"r":-0.649,"pos":0,"n":4},"legacy_noncomm":{"r":0.612,"pos":4,"n":4},"legacy_small":{"r":0.104,"pos":3,"n":4},"spec":{"r":0.554,"pos":4,"n":4},"other_rept":{"r":-0.103,"pos":2,"n":4},"counter":{"r":-0.36,"pos":0,"n":4},"dealer":{"r":-0.49,"pos":0,"n":4}}},"cot_weeks":168},{"key":"KMLM","what":"index rules","url":"https://kmlm.bluemagicai.com/","as_of":"2026-11-27","stale":false,"collateral":1.000002,"lean":{"equity":0,"bonds":-9.950557,"usd":0.8306900000000002,"commodity":-0.07232000000000001,"gross_long":0.2813,"gross_short":2.44358,"bonds_approx":true,"bonds_unknown":[]},"then":{"week":{"date":"2026-11-19","lean":{"equity":0,"bonds":-10.126240000000001,"usd":0.7453999999999998,"commodity":-0.010200000000000022,"gross_long":0.3093,"gross_short":2.349,"bonds_approx":true,"bonds_unknown":[]},"change":{"basis":"traded","equity":0,"bonds":0.38775000000000004,"usd":0.0775,"commodity":-0.0735,"gross_long":0.0517,"gross_short":0.151,"bonds_approx":true,"bonds_unknown":[]},"moves":[{"market":"AD","name":"Australian dollar","class":"fx","from":0.0076,"to":-0.0696,"d":-0.0772,"kind":"now short","traded":-0.0775},{"market":"JGB","name":"Japan 10Y","class":"rates","from":-0.2379,"to":-0.1919,"d":0.046,"kind":"covered some","traded":0.0517},{"market":"LC","name":"Live cattle","class":"commodity","from":-0.024,"to":-0.059,"d":-0.035,"kind":"shorted more","traded":-0.0348},{"market":"HG","name":"Copper","class":"commodity","from":0.0207,"to":-0.0087,"d":-0.0294,"kind":"now short","traded":-0.029}]},"month":{"date":"2026-10-28","lean":{"equity":0,"bonds":-10.238099999999998,"usd":0.6657,"commodity":0.32460000000000006,"gross_long":0.617,"gross_short":2.2574,"bonds_approx":true,"bonds_unknown":[]},"change":{"basis":"traded","equity":0,"bonds":0.5513,"usd":0.15070000000000003,"commodity":-0.3564,"gross_long":0.15689999999999998,"gross_short":0.5902000000000001,"bonds_approx":true,"bonds_unknown":[]},"moves":[{"market":"AD","name":"Australian dollar","class":"fx","from":0.1498,"to":-0.0696,"d":-0.2194,"kind":"now short","traded":-0.2166},{"market":"ZW","name":"Wheat","class":"commodity","from":0.0318,"to":-0.0689,"d":-0.1007,"kind":"now short","traded":-0.1013},{"market":"BP","name":"British pound","class":"fx","from":-0.1639,"to":-0.088,"d":0.0759,"kind":"covered some","traded":0.0787},{"market":"JGB","name":"Japan 10Y","class":"rates","from":-0.259,"to":-0.1919,"d":0.0671,"kind":"covered some","traded":0.0782},{"market":"HG","name":"Copper","class":"commodity","from":0.0691,"to":-0.0087,"d":-0.0778,"kind":"now short","traded":-0.0705},{"market":"LC","name":"Live cattle","class":"commodity","from":0.01,"to":-0.059,"d":-0.069,"kind":"now short","traded":-0.0681},{"market":"ZC","name":"Corn","class":"commodity","from":-0.0147,"to":-0.0726,"d":-0.0579,"kind":"shorted more","traded":-0.0557},{"market":"ZS","name":"Soybeans","class":"commodity","from":0.0648,"to":0.0385,"d":-0.0263,"kind":"sold some","traded":-0.0281},{"market":"NG","name":"Natural Gas","class":"commodity","from":-0.0616,"to":-0.0772,"d":-0.0156,"kind":"shorted more","traded":-0.011}]},"cot":{"date":"2026-11-17","lean":{"equity":0,"bonds":-10.04842,"usd":0.7102999999999999,"commodity":0.03410000000000004,"gross_long":0.3582,"gross_short":2.3085999999999998,"bonds_approx":true,"bonds_unknown":[]},"change":{"basis":"traded","equity":0,"bonds":0.38775000000000004,"usd":0.10830000000000001,"commodity":-0.11189999999999999,"gross_long":0.0517,"gross_short":0.22020000000000003,"bonds_approx":true,"bonds_unknown":[]},"moves":[{"market":"AD","name":"Australian dollar","class":"fx","from":0.0384,"to":-0.0696,"d":-0.108,"kind":"now short","traded":-0.1083},{"market":"JGB","name":"Japan 10Y","class":"rates","from":-0.2364,"to":-0.1919,"d":0.0445,"kind":"covered some","traded":0.0517},{"market":"LC","name":"Live cattle","class":"commodity","from":-0.01,"to":-0.059,"d":-0.049,"kind":"shorted more","traded":-0.0483},{"market":"HG","name":"Copper","class":"commodity","from":0.0342,"to":-0.0087,"d":-0.0429,"kind":"now short","traded":-0.0409},{"market":"ZW","name":"Wheat","class":"commodity","from":-0.0566,"to":-0.0689,"d":-0.0123,"kind":"shorted more","traded":-0.013}]}},"never":{"equity":"none, by its rules"},"trades_known":true,"cot":{"commodity":{"legacy_comm":{"r":-0.421,"pos":0,"n":11},"legacy_noncomm":{"r":0.414,"pos":11,"n":11},"legacy_small":{"r":0.182,"pos":9,"n":11},"spec":{"r":0.319,"pos":11,"n":11},"other_rept":{"r":-0.083,"pos":4,"n":11},"counter":{"r":-0.251,"pos":1,"n":11},"dealer":{"r":-0.217,"pos":1,"n":11}},"fx":{"legacy_comm":{"r":-0.515,"pos":0,"n":6},"legacy_noncomm":{"r":0.46,"pos":6,"n":6},"legacy_small":{"r":0.492,"pos":6,"n":6},"spec":{"r":0.356,"pos":6,"n":6},"other_rept":{"r":0.098,"pos":4,"n":6},"counter":{"r":0.428,"pos":5,"n":6},"dealer":{"r":-0.522,"pos":0,"n":6}}},"cot_weeks":151}],"grid":{"shared":[{"market":"JY","name":"Japanese yen","class":"fx","w":{"DBMF":0.285,"AHLT":-0.3019,"KMLM":-0.169},"members":[],"side":"split","size":0.7559},{"market":"ES","name":"S&P 500","class":"equity","w":{"DBMF":0.0706,"AHLT":0.0129},"members":[],"side":"long","size":0.0835},{"market":"TY","name":"US 10-year","class":"rates","w":{"DBMF":-0.5104,"AHLT":-0.3686,"KMLM":-0.2695},"members":["TN","TY"],"side":"short","size":1.1485},{"market":"BUND","name":"Euro Bund","class":"rates","w":{"AHLT":-0.3034,"KMLM":-0.2652},"members":[],"side":"short","size":0.5686},{"market":"US","name":"US long bond","class":"rates","w":{"DBMF":-0.2215,"AHLT":-0.2323},"members":["UB","US"],"side":"short","size":0.4538},{"market":"GILT","name":"UK Gilt","class":"rates","w":{"AHLT":-0.0564,"KMLM":-0.2667},"members":[],"side":"short","size":0.3231},{"market":"EC","name":"Euro","class":"fx","w":{"DBMF":-0.5232,"AHLT":-0.5738,"KMLM":-0.1678},"members":[],"side":"short","size":1.2648},{"market":"CD","name":"Canadian dollar","class":"fx","w":{"AHLT":-0.4041,"KMLM":-0.1679},"members":[],"side":"short","size":0.572},{"market":"BP","name":"British pound","class":"fx","w":{"AHLT":-0.2267,"KMLM":-0.088},"members":[],"side":"short","size":0.3147},{"market":"SF","name":"Swiss franc","class":"fx","w":{"AHLT":-0.065,"KMLM":-0.1684},"members":[],"side":"short","size":0.2334},{"market":"AD","name":"Australian dollar","class":"fx","w":{"AHLT":-0.1305,"KMLM":-0.0696},"members":[],"side":"short","size":0.2001},{"market":"GC","name":"Gold","class":"commodity","w":{"DBMF":-0.0795,"AHLT":-0.0704,"KMLM":-0.0671},"members":[],"side":"short","size":0.217},{"market":"CL","name":"WTI crude","class":"commodity","w":{"DBMF":0.0918,"AHLT":0.0321,"KMLM":0.0585},"members":[],"side":"long","size":0.1824},{"market":"HG","name":"Copper","class":"commodity","w":{"AHLT":-0.0106,"KMLM":-0.0087},"members":[],"side":"short","size":0.0193}],"single":[{"market":"TU","name":"US 2-year","class":"rates","w":{"DBMF":-0.5555},"members":[],"side":"short","size":0.5555},{"market":"BOBL","name":"Euro Bobl","class":"rates","w":{"AHLT":-0.4215},"members":[],"side":"short","size":0.4215},{"market":"FV","name":"US 5-year","class":"rates","w":{"AHLT":-0.3541},"members":[],"side":"short","size":0.3541},{"market":"CGB","name":"Canada 10Y","class":"rates","w":{"KMLM":-0.266},"members":[],"side":"short","size":0.266},{"market":"JGB","name":"Japan 10Y","class":"rates","w":{"KMLM":-0.1919},"members":[],"side":"short","size":0.1919},{"market":"NE","name":"New Zealand dollar","class":"fx","w":{"AHLT":-0.1416},"members":[],"side":"short","size":0.1416},{"market":"NG","name":"Natural Gas","class":"commodity","w":{"KMLM":-0.0772},"members":[],"side":"short","size":0.0772},{"market":"ZC","name":"Corn","class":"commodity","w":{"KMLM":-0.0726},"members":[],"side":"short","size":0.0726},{"market":"SB","name":"Sugar","class":"commodity","w":{"KMLM":0.0698},"members":[],"side":"long","size":0.0698},{"market":"ZW","name":"Wheat","class":"commodity","w":{"KMLM":-0.0689},"members":[],"side":"short","size":0.0689},{"market":"LC","name":"Live cattle","class":"commodity","w":{"KMLM":-0.059},"members":[],"side":"short","size":0.059},{"market":"HO","name":"Heating Oil","class":"commodity","w":{"KMLM":0.0582},"members":[],"side":"long","size":0.0582},{"market":"RB","name":"RBOB Gasoline","class":"commodity","w":{"KMLM":0.0563},"members":[],"side":"long","size":0.0563},{"market":"FTSE","name":"FTSE 100","class":"equity","w":{"AHLT":0.0531},"members":[],"side":"long","size":0.0531},{"market":"DAX","name":"DAX","class":"equity","w":{"AHLT":0.0406},"members":[],"side":"long","size":0.0406},{"market":"MFS","name":"MSCI EAFE","class":"equity","w":{"DBMF":-0.0401},"members":[],"side":"short","size":0.0401},{"market":"MES","name":"MSCI Emerging Markets","class":"equity","w":{"DBMF":0.0387},"members":[],"side":"long","size":0.0387},{"market":"ZS","name":"Soybeans","class":"commodity","w":{"KMLM":0.0385},"members":[],"side":"long","size":0.0385},{"market":"RTY","name":"Russell 2000","class":"equity","w":{"AHLT":-0.0348},"members":[],"side":"short","size":0.0348},{"market":"BZ","name":"Brent Crude","class":"commodity","w":{"AHLT":0.032},"members":[],"side":"long","size":0.032},{"market":"SI","name":"Silver","class":"commodity","w":{"AHLT":-0.0291},"members":[],"side":"short","size":0.0291},{"market":"TOPIX","name":"TOPIX","class":"equity","w":{"AHLT":0.0197},"members":[],"side":"long","size":0.0197},{"market":"STOXX50","name":"Euro Stoxx 50","class":"equity","w":{"AHLT":0.0186},"members":[],"side":"long","size":0.0186},{"market":"NQ","name":"Nasdaq-100","class":"equity","w":{"AHLT":-0.0094},"members":[],"side":"short","size":0.0094}]},"expect":{"as_of":"2026-11-17","next":"2026-11-24","final":true,"funds":{"DBMF":{"from":"2026-11-17","to":"2026-11-24","closed":true},"AHLT":{"from":"2026-11-17","to":"2026-11-24","closed":true},"KMLM":{"from":"2026-11-17","to":"2026-11-24","closed":true}},"unknown":[],"voters":["AHLT","KMLM"],"rows":[{"market":"AD","name":"Australian dollar","class":"fx","t":{"AHLT":-0.067,"KMLM":-0.0772},"spec":-0.4864,"px":-0.0136,"call":"selling","by":["AHLT","KMLM"],"grade":"with_big","rate":0.85,"lo":0.8,"hi":0.9,"dots":4},{"market":"BP","name":"British pound","class":"fx","t":{"AHLT":-0.1067},"spec":-0.1383,"px":-0.0073,"call":"selling","by":["AHLT"],"grade":"with_big","rate":0.85,"lo":0.8,"hi":0.9,"dots":4},{"market":"HG","name":"Copper","class":"commodity","t":{"AHLT":-0.0175,"KMLM":-0.0294},"spec":0.0564,"px":-0.1031,"call":"selling","by":["AHLT","KMLM"],"grade":"with","rate":0.74,"lo":0.68,"hi":0.79,"dots":3},{"market":"CL","name":"WTI crude","class":"commodity","t":{"DBMF":-0.036,"AHLT":-0.0101},"spec":0.0338,"px":-0.0372,"call":"selling","by":["AHLT"],"grade":"with","rate":0.74,"lo":0.68,"hi":0.79,"dots":3},{"market":"ZW","name":"Wheat","class":"commodity","t":{"KMLM":-0.013},"spec":-0.1066,"px":-0.0428,"call":"selling","by":["KMLM"],"grade":"with","rate":0.74,"lo":0.68,"hi":0.79,"dots":3},{"market":"SI","name":"Silver","class":"commodity","t":{"AHLT":-0.0025},"spec":0.1488,"px":-0.1388,"call":"selling","by":[],"grade":"price","rate":0.76,"lo":0.72,"hi":0.79,"dots":3},{"market":"HO","name":"Heating Oil","class":"commodity","t":{"KMLM":-0.003},"spec":0.0191,"px":-0.0851,"call":"selling","by":[],"grade":"price","rate":0.76,"lo":0.72,"hi":0.79,"dots":3},{"market":"GC","name":"Gold","class":"commodity","t":{"DBMF":-0.0742,"AHLT":-0.0043},"spec":0.4074,"px":-0.0782,"call":"selling","by":[],"grade":"price","rate":0.76,"lo":0.72,"hi":0.79,"dots":3},{"market":"EC","name":"Euro","class":"fx","t":{"DBMF":0.023,"AHLT":0.0393},"spec":-0.1648,"px":-0.0041,"call":"buying","by":["AHLT"],"grade":"flat","rate":0.67,"lo":0.62,"hi":0.72,"dots":2},{"market":"NG","name":"Natural Gas","class":"commodity","t":{},"spec":-0.1613,"px":0.0358,"call":"buying","by":[],"grade":"price","rate":0.72,"lo":0.68,"hi":0.76,"dots":2},{"market":"RB","name":"RBOB Gasoline","class":"commodity","t":{},"spec":0.2092,"px":-0.0318,"call":"selling","by":[],"grade":"price","rate":0.72,"lo":0.68,"hi":0.76,"dots":2},{"market":"ZC","name":"Corn","class":"commodity","t":{},"spec":0.0408,"px":-0.0285,"call":"selling","by":[],"grade":"price","rate":0.72,"lo":0.68,"hi":0.76,"dots":2},{"market":"SB","name":"Sugar","class":"commodity","t":{},"spec":0.1296,"px":-0.0281,"call":"selling","by":[],"grade":"price","rate":0.72,"lo":0.68,"hi":0.76,"dots":2},{"market":"LC","name":"Live cattle","class":"commodity","t":{"KMLM":-0.0345},"spec":0.09,"px":0.0326,"call":"selling","by":["KMLM"],"grade":"against","rate":0.54,"lo":0.45,"hi":0.62,"dots":1}],"quiet":[{"market":"TU","name":"US 2-year","class":"rates","t":{"DBMF":0.0968},"spec":-0.2202,"px":0.0023,"why":"large specs do not follow here"},{"market":"TY","name":"US 10-year","class":"rates","t":{"DBMF":0.0761,"AHLT":0.0046},"spec":-0.1679,"px":0.0118,"why":"large specs do not follow here"},{"market":"ES","name":"S&P 500","class":"equity","t":{"DBMF":-0.0395,"AHLT":-0.0528},"spec":-0.0383,"px":-0.0192,"why":"large specs do not follow here"},{"market":"JY","name":"Japanese yen","class":"fx","t":{"DBMF":0.0421,"AHLT":-0.0068},"spec":0.298,"px":0.0001,"why":"DBMF only, not counted"},{"market":"STOXX50","name":"Euro Stoxx 50","class":"equity","t":{"AHLT":-0.0347},"spec":null,"why":"no COT report"},{"market":"FTSE","name":"FTSE 100","class":"equity","t":{"AHLT":-0.0331},"spec":null,"why":"no COT report"},{"market":"DAX","name":"DAX","class":"equity","t":{"AHLT":-0.0326},"spec":null,"why":"no COT report"},{"market":"RTY","name":"Russell 2000","class":"equity","t":{"AHLT":-0.0212},"spec":-0.019,"px":-0.0081,"why":"large specs do not follow here"},{"market":"MES","name":"MSCI Emerging Markets","class":"equity","t":{"DBMF":-0.0188},"spec":-0.0403,"why":"large specs do not follow here"},{"market":"BOBL","name":"Euro Bobl","class":"rates","t":{"AHLT":-0.0181},"spec":null,"why":"no COT report"},{"market":"US","name":"US T-Bond","class":"rates","t":{"DBMF":0.0181},"spec":-0.0017,"px":0.0219,"why":"large specs do not follow here"},{"market":"MFS","name":"MSCI EAFE","class":"equity","t":{"DBMF":-0.0161},"spec":0.0513,"why":"large specs do not follow here"},{"market":"FV","name":"US 5-year","class":"rates","t":{"AHLT":0.0102},"spec":-0.1917,"px":0.0077,"why":"large specs do not follow here"},{"market":"BUND","name":"Euro Bund","class":"rates","t":{"AHLT":-0.0101},"spec":null,"why":"no COT report"}],"minor":[{"market":"NQ","name":"Nasdaq-100","class":"equity","t":{"AHLT":-0.0093},"spec":0.0275,"px":-0.0295},{"market":"ZS","name":"Soybeans","class":"commodity","t":{"KMLM":-0.0067},"spec":0.1461,"px":0.0069},{"market":"GILT","name":"UK Gilt","class":"rates","t":{"AHLT":-0.0065},"spec":null},{"market":"TOPIX","name":"TOPIX","class":"equity","t":{"AHLT":-0.0055},"spec":null},{"market":"BZ","name":"Brent Crude","class":"commodity","t":{"AHLT":-0.0041},"spec":null},{"market":"NE","name":"New Zealand dollar","class":"fx","t":{"AHLT":0.0026},"spec":null},{"market":"CD","name":"Canadian dollar","class":"fx","t":{"AHLT":0.0025},"spec":-0.1258,"px":0.0011},{"market":"UB","name":"US Ultra Bond","class":"rates","t":{"AHLT":0.002},"spec":null}],"price":{"from":"2026-11-17","to":"2026-11-24"}},"roles":[{"key":"legacy_noncomm","label":"Large speculators"},{"key":"legacy_comm","label":"Commercials"},{"key":"legacy_small","label":"Small traders"},{"key":"spec","label":"Speculative funds"},{"key":"other_rept","label":"Other reportables"},{"key":"counter","label":"Asset managers / producers"},{"key":"dealer","label":"Dealers / swap dealers"}],"missing":[]};
+  const $ = id => document.getElementById(id);
+  if (!D || !D.funds || !D.funds.length) { document.querySelector(".wrap").insertAdjacentHTML("beforeend", '<p class="empty">No fund pages built yet.</p>'); return; }
+  const F = D.funds, KEYS = F.map(f => f.key);
+  const ROWS = [["equity", "Equities"], ["bonds", "Bonds"], ["usd", "US dollar"], ["commodity", "Commodities"]];
+  const CLS = { equity: "Equities", rates: "Bonds", fx: "Currencies", commodity: "Commodities" };
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const sg = v => v > 0 ? "+" : v < 0 ? "−" : "";
+  const pc = (v, d = 0) => { if (v == null) return "·"; const r = Math.round(v * 100 * 10 ** d) / 10 ** d; return sg(r) + Math.abs(r).toFixed(d) + "%"; };
+  const yr = v => { if (v == null) return "·"; const r = Math.round(v * 10) / 10; return sg(r) + Math.abs(r).toFixed(1) + " yr"; };
+  const gp = v => v == null ? "·" : Math.round(v * 100) + "%";
+  const fmt = (k, v, d) => k === "bonds" ? yr(v) : pc(v, d);
+  const cl = (v, eps = 0.005) => Math.abs(v) < eps ? "zero" : v > 0 ? "pos" : "neg";
+  const kcl = (k, v) => cl(v, k === "bonds" ? 0.05 : 0.005);
+  const day = s => new Date(s + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+  /* ---------- as of ---------- */
+  $("asof").innerHTML = "Books as of " + F.map(f => `<b>${f.key}</b> <span class="${f.stale ? "old" : ""}"${f.stale ? ' title="This fund\'s page has not updated; its book is older than the others"' : ""}>${day(f.as_of)}</span>`).join(" · ") +
+    (D.cot_as_of ? `<br>Latest COT report: Tuesday ${day(D.cot_as_of)}` : "") +
+    (D.missing && D.missing.length ? `<br>Not built: ${D.missing.join(", ")}` : "");
+
+  /* ---------- leans ---------- */
+  const scale = {};
+  ROWS.forEach(([k]) => { let m = 0; F.forEach(f => { m = Math.max(m, Math.abs(f.lean[k])); if (f.then.month) m = Math.max(m, Math.abs(f.then.month.lean[k])); }); scale[k] = (m || 1) * 1.05; });
+  const bar = (v, ghost, s) => { const w = Math.min(50, Math.abs(v) / s * 50), left = v >= 0 ? 50 : 50 - w;
+    const g = ghost == null ? "" : `<s style="left:calc(${50 + Math.max(-50, Math.min(50, ghost / s * 50))}% - 1px)"></s>`;
+    return `<div class="bar"><i class="${v >= 0 ? "pos" : "neg"}" style="left:${left}%;width:${w}%"></i>${g}</div>`; };
+  $("cards").innerHTML = F.map(f => {
+    const L = f.lean, G = f.then.month && f.then.month.lean;
+    const rows = ROWS.map(([k, lab]) => f.never && f.never[k] ? `<div class="row"><span class="l">${lab}</span><span class="na">${esc(f.never[k])}</span></div>` :
+      `<div class="row"><span class="l">${lab}${k === "bonds" && L.bonds_approx ? "*" : ""}</span>${bar(L[k], G ? G[k] : null, scale[k])}<span class="v ${kcl(k, L[k])}">${fmt(k, L[k])}</span></div>`).join("");
+    return `<a class="card" href="${f.url}" aria-label="${f.key} fund page"><div class="t"><span class="tk">${f.key}</span><span class="what">${esc(f.what)}</span></div>${rows}
+      <div class="foot"><span>Gross long <b>${gp(L.gross_long)}</b></span><span>short <b>${gp(L.gross_short)}</b></span>${f.collateral == null ? "" : `<span>Collateral <b>${gp(f.collateral)}</b></span>`}</div></a>`;
+  }).join("");
+  if (F.some(f => f.lean.bonds_approx)) $("approx-note").hidden = false;
+
+  /* ---------- what changed ---------- */
+  const LK = [["cot", D.cot_as_of ? `Since the COT report (${day(D.cot_as_of)})` : "Since the COT report"], ["week", "1 week"], ["month", "1 month"]]
+    .filter(([k]) => F.some(f => f.then[k]));
+  function drawChg(lk) {
+    $("lk").innerHTML = LK.map(([k, l]) => `<button type="button" data-lk="${k}" aria-pressed="${k === lk}">${l}</button>`).join("");
+    $("lk").querySelectorAll("button").forEach(b => b.onclick = () => drawChg(b.dataset.lk));
+    const T = f => f.then[lk];
+    $("chg").innerHTML = `<tr><th></th>${F.map(f => `<th>${f.key}<div class="cls">${T(f) ? `${day(T(f).date)} to ${day(f.as_of)}` : "no book then"}</div></th>`).join("")}</tr>` +
+      ROWS.map(([k, lab]) => `<tr><td>${lab}</td>${F.map(f => { if (!T(f) || (f.never && f.never[k])) return `<td class="num zero">·</td>`;
+        const d = T(f).change[k]; return `<td class="num ${kcl(k, d)}">${fmt(k, d, 1)}${T(f).change.basis === "weight" ? "*" : ""}</td>`; }).join("")}</tr>`).join("");
+    const byWeight = F.filter(f => T(f) && T(f).change.basis === "weight").map(f => f.key);
+    $("chg-note").innerHTML = byWeight.length
+      ? `* ${byWeight.join(", ")}: trades not known over this span, so this is the change in weight, price moves included.` : "";
+    const amt = r => r.traded == null ? r.d : r.traded;
+    $("moves").innerHTML = F.filter(T).map(f => { const mv = T(f).moves.slice(0, 3);
+      return `<div><b>${f.key}</b> ${mv.length ? mv.map(r => `${esc(r.name)} ${r.kind} <span class="num ${cl(amt(r))}">${pc(amt(r))}</span>`).join(", ") : (T(f).change.basis === "traded" ? "traded no market by a point or more" : "no market moved by a point or more")}</div>`; }).join("");
+    const all = F.filter(T).flatMap(f => T(f).moves.map(r => ({ ...r, f: f.key })));
+    const drift = r => r.traded == null ? null : r.d - r.traded;
+    $("chg-all").innerHTML = all.length ? `<tr><th>Market</th><th>Fund</th><th>Then</th><th>Now</th><th>Traded</th><th>Price move</th><th class="l">What</th></tr>` +
+      all.map(r => `<tr><td>${esc(r.name)}</td><td>${r.f}</td><td class="num ${cl(r.from)}">${pc(r.from)}</td><td class="num ${cl(r.to)}">${pc(r.to)}</td><td class="num ${cl(amt(r))}">${pc(amt(r))}${r.traded == null ? "*" : ""}</td><td class="num ${drift(r) == null ? "zero" : cl(drift(r))}">${drift(r) == null ? "·" : pc(drift(r))}</td><td class="l">${r.kind}</td></tr>`).join("")
+      : `<tr><td class="zero">Nothing traded by a point or more.</td></tr>`;
+  }
+  if (LK.length) drawChg(LK[0][0]); else $("chg").innerHTML = `<tr><td class="zero">No earlier book to compare with yet.</td></tr>`;
+
+  /* ---------- what to expect in the next COT report ---------- */
+  (function () {
+    const E = D.expect;
+    if (!E || !(E.rows.length + E.quiet.length + E.minor.length)) return;
+    $("s-nx").hidden = false;
+    const ALLK = KEYS.filter(k => E.funds[k]), OPT = ALLK.includes("DBMF") && ALLK.length > 1;
+    $("nx-sub").textContent = (E.final ? `Traded Tue ${day(E.as_of)} to Tue ${day(E.next)}` : `Traded since Tue ${day(E.as_of)}`) + " · % of NAV";
+    /* past the count the table is final: later trades and prices are not in that report */
+    $("nx-lead").textContent = `Next report: positions as of Tue ${day(E.next)}.` +
+      (E.final ? " That count has closed, so this table is final until the report prints: later trades and prices are left out." : "") +
+      (E.unknown.length ? ` ${E.unknown.join(", ")}: trades since the report not known, left out.` : "");
+    const specs = r => r.spec == null ? "" : `<span class="specs">specs ${r.spec > 0 ? "long" : "short"} ${Math.abs(Math.round(r.spec * 100))}% of OI</span>`;
+    const cell = (r, k) => r.t[k] == null ? `<td class="num zero">·</td>` : `<td class="num ${cl(r.t[k])}">${pc(r.t[k], 1)}</td>`;
+    const PX = !!E.price;
+    const pxc = r => !PX ? "" : r.px == null ? `<td class="num zero">·</td>` : `<td class="num ${cl(r.px, 0.0005)}">${pc(r.px, 1)}</td>`;
+    const WHY = { with_big: "price + large trade", with: "price agrees", flat: "price flat", against: "against price" };
+    /* four dots, banded by the past hit rate in trend_page.DOTS */
+    const P = v => Math.round(v * 100);
+    const dot = n => `${"●".repeat(n)}<span class="o">${"●".repeat(4 - n)}</span>`;
+    const rate = r => r.rate == null ? "" : `<span class="dots" title="Calls like this were right ${P(r.rate)}% of the time in the record (likely range ${P(r.lo)}% to ${P(r.hi)}%)">${dot(r.dots)}</span>${WHY[r.grade] ? `<span class="why">${WHY[r.grade]}</span>` : ""}`;
+    const call = r => r.call === "split" ? `<span class="tag split">funds split</span>`
+      : `<span class="call ${r.call === "buying" ? "pos" : "neg"}${r.grade === "against" ? " weak" : ""}">${r.call === "buying" ? "Buying" : "Selling"}</span><span class="cm ${r.call === "buying" ? "neg" : "pos"}" title="${CMT}">comm. ${r.call === "buying" ? "selling" : "buying"}</span>`;
+    const CMT = "Commercials have moved opposite the large speculators about 9 weeks in 10, and this call flipped has predicted them as often as it predicts the large speculators";
+    const comm = r => r.call === "split" ? "" : `<span class="call ol ${r.call === "buying" ? "neg" : "pos"}" title="${CMT}">${r.call === "buying" ? "Selling" : "Buying"}</span>`;
+    function draw(dbmf) {
+      const FK = ALLK.filter(k => dbmf || k !== "DBMF");
+      /* with DBMF hidden, a row only DBMF traded has nothing left to show */
+      const keep = rows => dbmf ? rows : rows.filter(r => FK.some(k => r.t[k] != null));
+      const head = (last, conf) => `<tr><th>Market</th>${FK.map(k => `<th>${k}${E.voters.includes(k) ? "" : '<span class="cls">not counted</span>'}</th>`).join("")}${PX ? "<th>Price</th>" : ""}<th class="l">${last}</th>${conf ? '<th class="l cmc">Commercials next</th><th class="l"><span class="cf-l">Confidence</span><span class="cf-s" title="Confidence">Conf.</span></th>' : ""}</tr>`;
+      const body = (rows, last, conf) => rows.map(r => `<tr><td>${esc(r.name)}${specs(r)}</td>${FK.map(k => cell(r, k)).join("")}${pxc(r)}<td class="l">${last(r)}</td>${conf ? `<td class="l cmc">${comm(r)}</td><td class="l">${rate(r)}</td>` : ""}</tr>`).join("");
+      $("s-nx").classList.toggle("tight", !dbmf);
+      /* how far each shown fund's trades run: one date when they agree, else one per fund */
+      const wd = s => new Date(s + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+      const ends = FK.map(k => E.funds[k].to), one = ends.every(d => d === ends[0]);
+      $("nx-thru").textContent = !FK.length ? "" : one ? `Trades through the close of ${wd(ends[0])}.`
+        : "Trades through the close of: " + FK.map(k => `${k} ${wd(E.funds[k].to)}`).join(" · ") + ".";
+      if (PX && FK.length && !(one && ends[0] === E.price.to)) $("nx-thru").textContent += ` Price through ${wd(E.price.to)}.`;
+      else if (PX && FK.length) $("nx-thru").textContent = `Trades and price through the close of ${wd(ends[0])}.`;
+      /* fund calls first, then a break and the commodities read from price alone */
+      const fundRows = E.rows.filter(r => r.grade !== "price"), pxRows = E.rows.filter(r => r.grade === "price");
+      const cols = FK.length + (PX ? 5 : 2);
+      const n = pxRows.length;
+      const brk = n ? `<tr class="brk"><td colspan="${cols}"><button type="button" id="nx-px" aria-expanded="${pxOpen}" aria-controls="nx"><span class="tw-c" aria-hidden="true">▸</span><b>Price only</b> · ${n} commodit${n === 1 ? "y" : "ies"} neither fund made a call on, read from the price move alone</button></td></tr>` : "";
+      $("nx").innerHTML = E.rows.length ? head("Large specs next", PX) + body(fundRows, call, PX) + brk + body(pxRows, call, PX).replaceAll("<tr>", '<tr class="pxr">')
+        : `<tr><td class="zero">No call this week: neither AHLT nor KMLM has traded a point or more in a market where large speculators follow them, and no commodity has moved 1% or more.</td></tr>`;
+      const fold = (id, all, label, last, lastHead) => { const rows = keep(all); $(id + "-d").hidden = !rows.length; if (!rows.length) return;
+        $(id + "-s").textContent = label(rows.length); $(id).innerHTML = head(lastHead) + body(rows, last); };
+      fold("nx-quiet", E.quiet, n => `${n} market${n === 1 ? "" : "s"} traded, no call`, r => `<span class="cls">${esc(r.why)}</span>`, "Why no call");
+      fold("nx-minor", E.minor, n => `${n} smaller trade${n === 1 ? "" : "s"}, under a point`, r => `<span class="cls">${CLS[r.class] || r.class}</span>`, "Class");
+    }
+    $("nx-key").hidden = !PX;
+    /* the price-only block folds from its break row, shut by default, remembered per viewer */
+    let pxOpen = false;
+    try { pxOpen = localStorage.getItem("nx-px") === "1"; } catch (e) { /* storage blocked: shut */ }
+    const pxApply = () => { $("nx").classList.toggle("px-shut", !pxOpen); const b = $("nx-px"); if (b) b.setAttribute("aria-expanded", pxOpen); };
+    $("nx").addEventListener("click", ev => { if (!ev.target.closest("#nx-px")) return;
+      pxOpen = !pxOpen; try { localStorage.setItem("nx-px", pxOpen ? "1" : "0"); } catch (e) { /* not remembered */ } pxApply(); });
+    let on = true;
+    try { on = localStorage.getItem("nx-dbmf") !== "0"; } catch (e) { /* storage blocked: default on */ }
+    if (!OPT) on = true;
+    const btn = $("nx-dbmf");
+    $("nx-seg").hidden = !OPT;
+    btn.onclick = () => { on = !on; btn.setAttribute("aria-pressed", on); try { localStorage.setItem("nx-dbmf", on ? "1" : "0"); } catch (e) { /* not remembered */ } draw(on); pxApply(); };
+    btn.setAttribute("aria-pressed", on);
+    draw(on);
+    pxApply();
+  })();
+
+  /* ---------- the grid ---------- */
+  (function () {
+    const G = D.grid, sh = G.shared, split = sh.filter(r => r.side === "split").length;
+    $("grid-sub").textContent = sh.length ? `${split} split · ${sh.length - split} on the same side · markets two or more funds hold` : "";
+    const label = r => `${esc(r.name)} <span class="cls">${CLS[r.class] || r.class}</span>`;
+    const cell = (r, k) => r.w[k] == null ? `<td class="zero">·</td>` : `<td><span class="pill ${cl(r.w[k])}${Math.abs(r.w[k]) < 0.02 ? " small" : ""}">${pc(r.w[k])}</span></td>`;
+    const tip = r => r.members && r.members.length ? ` title="Counts ${r.members.join(" and ")} as one market"` : "";
+    const head = last => `<tr><th>Market</th>${KEYS.map(k => `<th>${k}</th>`).join("")}${last ? "<th></th>" : ""}</tr>`;
+    $("grid").innerHTML = sh.length ? head(true) + sh.map(r => `<tr${tip(r)}><td>${label(r)}</td>${KEYS.map(k => cell(r, k)).join("")}<td><span class="tag ${r.side === "split" ? "split" : ""}">${r.side === "split" ? "split" : "all " + r.side}</span></td></tr>`).join("")
+      : `<tr><td class="zero">No market is held by two funds.</td></tr>`;
+    $("grid-one").innerHTML = head(false) + G.single.map(r => `<tr><td>${label(r)}</td>${KEYS.map(k => cell(r, k)).join("")}</tr>`).join("");
+  })();
+
+  /* ---------- COT: weekly changes, the fund pages' own measure and shading ---------- */
+  (function () {
+    const CF = F.filter(f => f.cot);
+    if (!CF.length) { $("s-cot").hidden = true; return; }
+    const CK = ["equity", "rates", "fx", "commodity"];
+    const TOP = [["legacy_noncomm", "Large speculators"], ["spec", "Leveraged funds / managed money"]];
+    const heat = x => { if (!x || x.r == null) return `<span class="heat zero">·</span>`;
+      const a = Math.abs(x.r) < 0.2 ? 0 : Math.min(Math.abs(x.r), 0.8) / 0.8 * 45, col = x.r >= 0 ? "var(--long)" : "var(--short)";
+      return `<span class="heat" title="Same way in ${x.pos} of ${x.n} markets" style="background:color-mix(in srgb, ${col} ${a.toFixed(0)}%, transparent)">${x.r >= 0 ? "+" : "−"}${Math.abs(x.r).toFixed(2)}</span>`; };
+    const get = (f, c, role) => (f.cot[c] || {})[role];
+    $("cot-sub").textContent = `Correlation of weekly changes · COT ${day(D.cot_as_of)}`;
+    $("cot").innerHTML = TOP.map(([role, lab]) => `<div><h3>${lab}</h3><div class="tw"><table><tr><th></th>${CF.map(f => `<th>${f.key}</th>`).join("")}</tr>` +
+      CK.map(c => `<tr><td>${CLS[c]}</td>${CF.map(f => `<td>${heat(get(f, c, role))}</td>`).join("")}</tr>`).join("") + `</table></div></div>`).join("");
+    $("cot-full").innerHTML = CF.map(f => `<div class="tw" style="margin-bottom:8px"><table><tr><th>${f.key}${f.cot_weeks ? ` <span class="cls">${f.cot_weeks} weeks</span>` : ""}</th>${CK.map(c => `<th>${CLS[c]}</th>`).join("")}</tr>` +
+      D.roles.map(r => `<tr><td>${esc(r.label)}</td>${CK.map(c => `<td>${heat(get(f, c, r.key))}</td>`).join("")}</tr>`).join("") + `</table></div>`).join("");
+  })();
+})();
+</script>
+<script>(function(){var i=new Image();i.src="https://bluemagicai.com/seen.gif?p=trend&r="+encodeURIComponent(document.referrer);})();</script>
+<noscript><img src="https://bluemagicai.com/seen.gif?p=trend" alt="" width="1" height="1"></noscript>
+<script>window.goatcounter={path:"/trend"};</script>
+<script data-goatcounter="https://stats.bluemagicai.com/count" async src="https://stats.bluemagicai.com/count.js"></script>
+</body></html>
